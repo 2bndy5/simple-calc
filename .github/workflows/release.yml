@@ -1,0 +1,316 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - '*'
+  pull_request:
+    branches: [main, master]
+
+env:
+  binary: simple-calc
+
+permissions: {}
+
+jobs:
+
+  # Build for wasm
+  release-wasm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Get project version
+        id: get_version
+        shell: python
+        run: |-
+          from os import environ
+          from tomllib import load
+          with open("Cargo.toml", "rb") as f:
+              cargo_toml = load(f)
+              version = cargo_toml["package"]["version"]
+              with open(environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write(f"tag={version}\n")
+      - name: Setup Rust toolchain
+        run: |-
+          rustup update --no-self-update
+          rustup target add wasm32-unknown-unknown
+      - name: install wasm-bindgen-cli
+        run: |
+          cargo install wasm-bindgen-cli
+
+      - name: Build
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+
+      - name: Prepare package
+        run: |-
+          wasm-bindgen --no-typescript --out-name ${{ env.binary }} --out-dir wasm --target web target/wasm32-unknown-unknown/release/${{ env.binary }}.wasm
+          cp -r assets wasm/ || true # Try to copy, but ignore if it can't copy if source directory does not exist 
+
+      - name: Package as a zip
+        working-directory: ./wasm
+        env:
+          asset_name: ${{ env.binary }}-wasm-${{ steps.get_version.outputs.tag }}.zip
+        run: |
+          zip --recurse-paths ../${{ env.binary }}.zip .
+          mv ../${{ env.binary }}.zip ../${{ env.asset_name }}
+
+      - name: Upload binaries to artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          path: ${{ env.binary }}-wasm-${{ steps.get_version.outputs.tag }}.zip
+          name: wasm
+
+  # Build for Linux
+  release-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Get project version
+        id: get_version
+        shell: python
+        run: |-
+          from os import environ
+          from tomllib import load
+          with open("Cargo.toml", "rb") as f:
+              cargo_toml = load(f)
+              version = cargo_toml["package"]["version"]
+              with open(environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write(f"tag={version}\n")
+      - name: Setup Rust toolchain
+        run: |-
+          rustup update --no-self-update
+          rustup target add x86_64-unknown-linux-gnu
+
+      - name: Install dependencies
+        run: |-
+          sudo apt-get update;
+          sudo apt-get install \
+          pkg-config \
+          libx11-dev \
+          libasound2-dev \
+          libudev-dev \
+          libxcb-render0-dev \
+          libxcb-shape0-dev \
+          libxcb-xfixes0-dev \
+          libwayland-dev
+
+      - name: Build
+        run: |
+          cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Prepare package
+        run: |
+          mkdir linux
+          cp target/x86_64-unknown-linux-gnu/release/${{ env.binary }} linux/
+          cp -r assets linux/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
+
+      - name: Package as a zip
+        working-directory: ./linux
+        env:
+          asset_name: ${{ env.binary }}-linux-${{ steps.get_version.outputs.tag }}.zip
+        run: |
+          zip --recurse-paths ../${{ env.binary }}.zip .
+          mv ../${{ env.binary }}.zip ../${{ env.asset_name }}
+
+      - name: Upload binaries to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.binary }}-linux-${{ steps.get_version.outputs.tag }}.zip
+          name: linux
+
+  # Build for Windows
+  release-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Get project version
+        id: get_version
+        shell: python
+        run: |-
+          from os import environ
+          from tomllib import load
+          with open("Cargo.toml", "rb") as f:
+              cargo_toml = load(f)
+              version = cargo_toml["package"]["version"]
+              with open(environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write(f"tag={version}\n")
+      - name: Setup Rust toolchain
+        run: |-
+          rustup update --no-self-update
+          rustup target add x86_64-pc-windows-msvc
+
+      - name: Build
+        run: |
+          cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Prepare package
+        run: |
+          mkdir windows
+          cp target/x86_64-pc-windows-msvc/release/${{ env.binary }}.exe windows/
+          mkdir assets -ea 0 # create the assets directory if it does not exist, it will get ignored in the zip if empty
+          cp -r assets windows/
+
+      - name: Package as a zip
+        env:
+          asset_name: ${{ env.binary }}-windows-${{ steps.get_version.outputs.tag }}.zip
+        run: |
+          Compress-Archive -Path windows/* -DestinationPath ${{ env.binary }}.zip
+          mv ${{ env.binary }}.zip ${{ env.asset_name }}
+
+      - name: Upload binaries to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.binary }}-windows-${{ steps.get_version.outputs.tag }}.zip
+
+  # Build for MacOS x86_64
+  release-macOS-intel:
+    runs-on: macOS-latest
+
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Get project version
+        id: get_version
+        shell: python
+        run: |-
+          from os import environ
+          from tomllib import load
+          with open("Cargo.toml", "rb") as f:
+              cargo_toml = load(f)
+              version = cargo_toml["package"]["version"]
+              with open(environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write(f"tag={version}\n")
+      - name: Setup Rust toolchain
+        run: |-
+          rustup update --no-self-update
+          rustup target add x86_64-apple-darwin
+      - name: Environment Setup
+        run: |
+          export CFLAGS="-fno-stack-check"
+          export MACOSX_DEPLOYMENT_TARGET="10.9"
+
+      - name: Build
+        run: |
+          cargo build --release --target x86_64-apple-darwin
+
+      - name: Prepare Package
+        env:
+          asset_name: ${{ env.binary }}-macOS-intel-${{ steps.get_version.outputs.tag }}.dmg
+        run: |
+          mkdir -p ${{ env.binary }}.app/Contents/MacOS
+          cp target/x86_64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
+          cp -r assets ${{ env.binary }}.app/Contents/MacOS/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
+          hdiutil create -fs HFS+ -volname "${{ env.binary }}" -srcfolder ${{ env.binary }}.app ${{ env.binary }}-macOS-intel.dmg
+          mv ${{ env.binary }}-macOS-intel.dmg ${{ env.asset_name }}
+
+      - name: Upload binaries to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.binary }}-macOS-intel-${{ steps.get_version.outputs.tag }}.dmg
+          name: macOS-intel
+
+  # Build for MacOS Apple Silicon
+  release-macOS-apple-silicon:
+    runs-on: macOS-latest
+
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Get project version
+        id: get_version
+        shell: python
+        run: |-
+          from os import environ
+          from tomllib import load
+          with open("Cargo.toml", "rb") as f:
+              cargo_toml = load(f)
+              version = cargo_toml["package"]["version"]
+              with open(environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write(f"tag={version}\n")
+      - name: Setup Rust toolchain
+        run: |-
+          rustup update --no-self-update
+          rustup target add aarch64-apple-darwin
+      - name: Environment 
+        # macOS 11 was the first version to support ARM
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET="11"
+
+      - name: Build
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+
+      - name: Prepare Package
+        env:
+          asset_name: ${{ env.binary }}-macOS-apple-silicon-${{ steps.get_version.outputs.tag }}.dmg
+        run: |
+          mkdir -p ${{ env.binary }}.app/Contents/MacOS
+          cp target/aarch64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
+          cp -r assets ${{ env.binary }}.app/Contents/MacOS/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
+          hdiutil create -fs HFS+ -volname "${{ env.binary }}-macOS-apple-silicon" -srcfolder ${{ env.binary }}.app ${{ env.binary }}-macOS-apple-silicon.dmg
+          mv ${{ env.binary }}-macOS-apple-silicon.dmg ${{ env.asset_name }}
+
+      - name: Upload binaries to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.binary }}-macOS-apple-silicon-${{ steps.get_version.outputs.tag }}.dmg
+          name: macOS-apple-silicon
+          retention-days: 1
+
+  release-assets:
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      # needed to upload release assets
+      contents: write
+    needs:
+      - release-wasm
+      - release-linux
+      - release-windows
+      - release-macOS-intel
+      - release-macOS-apple-silicon
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.binary }}-*
+          merge-multiple: true
+          path: artifacts
+      - name: List assets
+        id: list-assets
+        run: |-
+          assets=$(ls ./artifacts)
+          echo "Assets to upload: ${assets}"
+          echo "artifacts=${assets}" >> "${GITHUB_OUTPUT}"
+      - name: Upload binaries to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          artifacts: ${{ steps.list-assets.outputs.artifacts }}
+        run: >-
+          gn release upload
+          ${{ env.tag }}
+          --repo ${{ github.repository }}
+          ${{ env.artifacts }}
