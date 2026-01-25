@@ -65,6 +65,11 @@ jobs:
           path: ${{ env.binary }}-wasm-${{ steps.get_version.outputs.tag }}.zip
           name: wasm
 
+      - name: Prepare GH-pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./wasm/
+
   # Build for Linux
   build-linux:
     runs-on: ubuntu-latest
@@ -314,3 +319,24 @@ jobs:
           ${{ env.tag }}
           --repo ${{ github.repository }}
           ${{ env.artifacts }}
+
+  deploy-gh-pages:
+    # We only want to deploy from
+    # 1. This fork. Not upstream or some other fork.
+    # 2. Pushes to the main
+    # 3. Pull requests targeting the main branch (see triggers at top of file)
+    # 4. Tags starting with "v" (to publish releases)
+    if: github.repository == '2bndy5/simple-calc' && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v'))
+    needs: build-wasm
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy-gh-pages.outputs.page_url }}
+    permissions:
+      # to deploy to Pages
+      pages: write
+      # to verify the deployment originates from an appropriate source
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deploy-gh-pages

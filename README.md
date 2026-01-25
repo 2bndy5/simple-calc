@@ -18,6 +18,11 @@ Otherwise, the original functional behavior remains the same.
 
 ## Try it out
 
+Checkout the wasm build hosted on this repo's GitHub Pages site:
+<https://2bndy5.github.io/simple-calc/>
+
+Or build it from source code:
+
 1. Clone this repo:
 
    ```sh
