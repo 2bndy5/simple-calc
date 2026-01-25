@@ -1,10 +1,13 @@
 [package]
-name = "bevy-test"
-version = "0.1.0"
-authors = ["Pravin Kumar <pravinshanmugam1995@gmail.com>"]
-edition = "2018"
+name = "simple-calc"
+version = "0.2.0"
+authors = [
+    "Pravin Kumar <pravinshanmugam1995@gmail.com>",
+    "Brendan Doherty <2bndy5@gmail.com>",
+]
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = '0.5.0'
+bevy = "0.18.0"

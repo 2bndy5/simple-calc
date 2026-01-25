@@ -1,14 +1,37 @@
 # simple-calc
-Calculator created using bevyengine following their examples.   
-Note: It's not feature complete.
+
+A simple calculator created using the bevy game engine.
+
+This was forked from its original source on github:
+<https://github.com/PravinKumar95/simple-calc>
+Modifications were made to:
+
+- upgrade it to use bevy v0.18.0
+- some code cleanup
+
+Otherwise, the original functional behavior remains the same.
+
+> [!CAUTION]
+> This is not feature complete.
 
 ![image of simple calculator](/calc.PNG "bevy calc")
 
-# Install 
-1. git clone https://github.com/PravinKumar95/simple-calc.git
-2. cd simple-calc
-3. cargo run --release
+## Try it out
 
-## Note
-In case of compile error, remove config file under .cargo to disable fast builds
-and beware of use and throw code
+1. Clone this repo:
+
+   ```sh
+   git clone https://github.com/2bndy5/simple-calc
+   ```
+
+2. Navigate to the locally cloned repo:
+
+   ```sh
+   cd simple-calc
+   ```
+
+3. Run the project binary (main.rs):
+
+   ```sh
+   cargo run
+   ```

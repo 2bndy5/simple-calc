@@ -1,94 +1,118 @@
-use bevy::prelude::*;
+use crate::calc::Calc;
+use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
 
-pub struct BtnPlugin{
-    pub text:String,
-}
+pub const BG_COLOR: Color = Color::srgb(0.153, 0.153, 0.153);
+pub const BORDER_COLOR: Color = Color::srgb(0.5, 0.5, 0.5);
+pub const PRESSED_COLOR: Color = Color::srgb(0.7, 0.4, 0.0);
+pub const CC_COLOR: Color = Color::srgb(0.7, 0.0, 0.0);
 
-impl Plugin for BtnPlugin{
-    fn build(&self, app: &mut AppBuilder) {
-        app
-        .init_resource::<ButtonMaterials>()
-        .add_startup_system(setup.system())
-        .add_system(button_system.system());
+pub struct ButtonPlugin;
+impl Plugin for ButtonPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, button_system);
     }
 }
-/// This example illustrates how to create a button that changes color and text based on its interaction state.
 
-pub struct ButtonMaterials {
-    normal: Handle<ColorMaterial>,
-    hovered: Handle<ColorMaterial>,
-    pressed: Handle<ColorMaterial>,
-}
-
-impl FromResources for ButtonMaterials {
-    fn from_resources(resources: &Resources) -> Self {
-        let mut materials = resources.get_mut::<Assets<ColorMaterial>>().unwrap();
-        ButtonMaterials {
-            normal: materials.add(Color::rgb(0.02, 0.02, 0.02).into()),
-            hovered: materials.add(Color::rgb(0.05, 0.05, 0.05).into()),
-            pressed: materials.add(Color::rgb(0.1, 0.5, 0.1).into()),
+fn button_press(calc: &mut Calc, val: String) {
+    match &val[..] {
+        "0" => calc.add_display(0.0),
+        "1" => calc.add_display(1.0),
+        "2" => calc.add_display(2.0),
+        "3" => calc.add_display(3.0),
+        "4" => calc.add_display(4.0),
+        "5" => calc.add_display(5.0),
+        "6" => calc.add_display(6.0),
+        "7" => calc.add_display(7.0),
+        "8" => calc.add_display(8.0),
+        "9" => calc.add_display(9.0),
+        "+" => calc.add_symbol("+".to_string()),
+        "-" => calc.add_symbol("-".to_string()),
+        "*" => calc.add_symbol("*".to_string()),
+        "/" => calc.add_symbol("/".to_string()),
+        "=" => {
+            let sym = calc.symbol();
+            match &sym[..] {
+                "+" => calc.add(),
+                "-" => calc.sub(),
+                "*" => calc.mult(),
+                "/" => calc.div(),
+                _ => (),
+            }
         }
+        "C" => calc.reset(),
+        _ => (),
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn button_system(
-    button_materials: Res<ButtonMaterials>,
-    mut interaction_query: Query<(
-        &Button,
-        Mutated<Interaction>,
-        &mut Handle<ColorMaterial>,
-        &Children,
-    )>,
-    text_query: Query<&mut Text>,
+    mut calc: ResMut<Calc>,
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor, &Children),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut text_query: Query<&mut Text>,
 ) {
-    for (_button, interaction, mut material, children) in &mut interaction_query.iter() {
-        let mut text = text_query.get_mut::<Text>(children[0]).unwrap();
+    for (interaction, mut button_color, children) in interaction_query.iter_mut() {
+        let text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
-            Interaction::Clicked => {
-                *material = button_materials.pressed;
+            Interaction::Pressed => {
+                button_color.0 = PRESSED_COLOR;
+                button_press(&mut calc, text.0.clone());
             }
             Interaction::Hovered => {
-                *material = button_materials.hovered;
+                if text.0 == "C" {
+                    button_color.0 = Color::BLACK.mix(&CC_COLOR, 0.4);
+                } else {
+                    button_color.0 = Color::BLACK.mix(&BG_COLOR, 0.4);
+                }
             }
             Interaction::None => {
-                *material = button_materials.normal;
+                if text.0 == "C" {
+                    button_color.0 = CC_COLOR;
+                } else {
+                    button_color.0 = BG_COLOR;
+                }
             }
         }
+        button_color.set_changed();
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    button_materials: Res<ButtonMaterials>,
-) {
-    commands
-        // ui camera
-        .spawn(ButtonComponents {
-            style: Style {
-                size: Size::new(Val::Px(65.0), Val::Px(65.0)),
-                // center button
-                margin: Rect::all(Val::Auto),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            material: button_materials.normal,
-            ..Default::default()
-        })
-        .with_children(|parent| {
-            parent.spawn(TextComponents {
-                text: Text {
-                    value: state.text.clone(),
-                    font: asset_server.load("assets/fonts/FiraSans-Bold.ttf").unwrap(),
-                    style: TextStyle {
-                        font_size: 40.0,
-                        color: Color::rgb(0.8, 0.8, 0.8),
+impl ButtonPlugin {
+    pub fn spawn_buttons(parent: &mut RelatedSpawnerCommands<'_, ChildOf>, font: Handle<Font>) {
+        let btn_symbols = vec![
+            "7", "8", "9", "C", "4", "5", "6", "-", "1", "2", "3", "+", "0", "*", "/", "=",
+        ];
+        for i in btn_symbols {
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        // center button
+                        border: UiRect::all(Val::Px(2.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..Default::default()
                     },
-                },
-                ..Default::default()
-            });
-        });
+                    BorderColor::all(BORDER_COLOR),
+                    BackgroundColor(BG_COLOR),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Text::new(i.to_string()),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 40.0,
+                            ..Default::default()
+                        },
+                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                    ));
+                });
+        }
+    }
 }
