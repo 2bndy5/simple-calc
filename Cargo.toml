@@ -9,5 +9,7 @@ edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-bevy = "0.18.0"
+[dependencies.bevy]
+version = "0.18.0"
+default-features = false
+features = ["ui"]
