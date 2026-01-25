@@ -16,7 +16,7 @@ permissions: {}
 jobs:
 
   # Build for wasm
-  release-wasm:
+  build-wasm:
     runs-on: ubuntu-latest
 
     steps:
@@ -48,7 +48,7 @@ jobs:
 
       - name: Prepare package
         run: |-
-          wasm-bindgen --no-typescript --out-name ${{ env.binary }} --out-dir wasm --target web target/wasm32-unknown-unknown/release/${{ env.binary }}.wasm
+          wasm-bindgen --no-typescript --out-name bevy_game --out-dir wasm --target web target/wasm32-unknown-unknown/release/${{ env.binary }}.wasm
           cp -r assets wasm/ || true # Try to copy, but ignore if it can't copy if source directory does not exist 
 
       - name: Package as a zip
@@ -66,7 +66,7 @@ jobs:
           name: wasm
 
   # Build for Linux
-  release-linux:
+  build-linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -127,7 +127,7 @@ jobs:
           name: linux
 
   # Build for Windows
-  release-windows:
+  build-windows:
     runs-on: windows-latest
 
     steps:
@@ -177,7 +177,7 @@ jobs:
           path: ${{ env.binary }}-windows-${{ steps.get_version.outputs.tag }}.zip
 
   # Build for MacOS x86_64
-  release-macOS-intel:
+  build-macOS-intel:
     runs-on: macOS-latest
 
     steps:
@@ -228,7 +228,7 @@ jobs:
           name: macOS-intel
 
   # Build for MacOS Apple Silicon
-  release-macOS-apple-silicon:
+  build-macOS-apple-silicon:
     runs-on: macOS-latest
 
     steps:
@@ -285,11 +285,11 @@ jobs:
       # needed to upload release assets
       contents: write
     needs:
-      - release-wasm
-      - release-linux
-      - release-windows
-      - release-macOS-intel
-      - release-macOS-apple-silicon
+      - build-wasm
+      - build-linux
+      - build-windows
+      - build-macOS-intel
+      - build-macOS-apple-silicon
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
