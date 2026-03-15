@@ -1,4 +1,10 @@
-use bevy::{prelude::*, window::WindowResolution};
+use std::time::Duration;
+
+use bevy::{
+    prelude::*,
+    window::{PresentMode, WindowResolution},
+    winit::{UpdateMode, WinitSettings},
+};
 mod button;
 use button::{BG_COLOR, BORDER_COLOR, ButtonPlugin};
 mod calc;
@@ -6,11 +12,22 @@ use calc::Calc;
 
 fn main() {
     App::new()
+        // Power-saving reactive rendering for applications.
+        .insert_resource(WinitSettings {
+            focused_mode: UpdateMode::reactive_low_power(Duration::from_millis(100)),
+            unfocused_mode: UpdateMode::reactive_low_power(Duration::from_secs(5)),
+        })
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "bevy calculator".to_string(),
                 resolution: WindowResolution::new(450, 600),
                 resizable: true,
+                present_mode: PresentMode::AutoNoVsync,
+                resize_constraints: WindowResizeConstraints {
+                    min_width: 450.0,
+                    min_height: 600.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
             ..Default::default()

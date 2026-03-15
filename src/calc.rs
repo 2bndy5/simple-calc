@@ -51,9 +51,6 @@ impl Calc {
     pub fn symbol(&self) -> String {
         self.symbol.clone()
     }
-    // pub fn set_display(&mut self, val: f32) {
-    //     self.left = val;
-    // }
     pub fn add_display(&mut self, val: f32) {
         if self.is_evaluated
             && (self.symbol != "+"
