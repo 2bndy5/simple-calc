@@ -14,11 +14,10 @@ env:
 permissions: {}
 
 jobs:
-
-  # Build for wasm
-  build-wasm:
+  get-lib-info:
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,15 +31,26 @@ jobs:
           with open("Cargo.toml", "rb") as f:
               cargo_toml = load(f)
               version = cargo_toml["package"]["version"]
+              print(f"Version: {version}")
               with open(environ["GITHUB_OUTPUT"], "a") as out:
-                  out.write(f"tag={version}\n")
+                  out.write(f"version={version}\n")
+
+  # Build for wasm
+  build-wasm:
+    needs: [get-lib-info]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Setup Rust toolchain
         run: |-
           rustup update --no-self-update
           rustup target add wasm32-unknown-unknown
       - name: install wasm-bindgen-cli
         run: |
-          cargo install wasm-bindgen-cli
+          cargo install wasm-bindgen-cli --locked
 
       - name: Build
         run: |
@@ -54,7 +64,7 @@ jobs:
       - name: Package as a zip
         working-directory: ./wasm
         env:
-          asset_name: ${{ env.binary }}-wasm-${{ steps.get_version.outputs.tag }}.zip
+          asset_name: ${{ env.binary }}-wasm-${{ needs.get-lib-info.outputs.version }}.zip
         run: |
           zip --recurse-paths ../${{ env.binary }}.zip .
           mv ../${{ env.binary }}.zip ../${{ env.asset_name }}
@@ -62,7 +72,7 @@ jobs:
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v6
         with:
-          path: ${{ env.binary }}-wasm-${{ steps.get_version.outputs.tag }}.zip
+          path: ${{ env.binary }}-wasm-${{ needs.get-lib-info.outputs.version }}.zip
           name: wasm
 
       - name: Prepare GH-pages artifact
@@ -72,6 +82,7 @@ jobs:
 
   # Build for Linux
   build-linux:
+    needs: [get-lib-info]
     runs-on: ubuntu-latest
 
     steps:
@@ -120,7 +131,7 @@ jobs:
       - name: Package as a zip
         working-directory: ./linux
         env:
-          asset_name: ${{ env.binary }}-linux-${{ steps.get_version.outputs.tag }}.zip
+          asset_name: ${{ env.binary }}-linux-${{ needs.get-lib-info.outputs.version }}.zip
         run: |
           zip --recurse-paths ../${{ env.binary }}.zip .
           mv ../${{ env.binary }}.zip ../${{ env.asset_name }}
@@ -128,11 +139,12 @@ jobs:
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.binary }}-linux-${{ steps.get_version.outputs.tag }}.zip
+          path: ${{ env.binary }}-linux-${{ needs.get-lib-info.outputs.version }}.zip
           name: linux
 
   # Build for Windows
   build-windows:
+    needs: [get-lib-info]
     runs-on: windows-latest
 
     steps:
@@ -171,7 +183,7 @@ jobs:
 
       - name: Package as a zip
         env:
-          asset_name: ${{ env.binary }}-windows-${{ steps.get_version.outputs.tag }}.zip
+          asset_name: ${{ env.binary }}-windows-${{ needs.get-lib-info.outputs.version }}.zip
         run: |
           Compress-Archive -Path windows/* -DestinationPath ${{ env.binary }}.zip
           mv ${{ env.binary }}.zip ${{ env.asset_name }}
@@ -179,10 +191,11 @@ jobs:
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.binary }}-windows-${{ steps.get_version.outputs.tag }}.zip
+          path: ${{ env.binary }}-windows-${{ needs.get-lib-info.outputs.version }}.zip
 
   # Build for MacOS x86_64
   build-macOS-intel:
+    needs: [get-lib-info]
     runs-on: macOS-latest
 
     steps:
@@ -218,7 +231,7 @@ jobs:
 
       - name: Prepare Package
         env:
-          asset_name: ${{ env.binary }}-macOS-intel-${{ steps.get_version.outputs.tag }}.dmg
+          asset_name: ${{ env.binary }}-macOS-intel-${{ needs.get-lib-info.outputs.version }}.dmg
         run: |
           mkdir -p ${{ env.binary }}.app/Contents/MacOS
           cp target/x86_64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
@@ -229,11 +242,12 @@ jobs:
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.binary }}-macOS-intel-${{ steps.get_version.outputs.tag }}.dmg
+          path: ${{ env.binary }}-macOS-intel-${{ needs.get-lib-info.outputs.version }}.dmg
           name: macOS-intel
 
   # Build for MacOS Apple Silicon
   build-macOS-apple-silicon:
+    needs: [get-lib-info]
     runs-on: macOS-latest
 
     steps:
@@ -269,7 +283,7 @@ jobs:
 
       - name: Prepare Package
         env:
-          asset_name: ${{ env.binary }}-macOS-apple-silicon-${{ steps.get_version.outputs.tag }}.dmg
+          asset_name: ${{ env.binary }}-macOS-apple-silicon-${{ needs.get-lib-info.outputs.version }}.dmg
         run: |
           mkdir -p ${{ env.binary }}.app/Contents/MacOS
           cp target/aarch64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
@@ -280,7 +294,7 @@ jobs:
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.binary }}-macOS-apple-silicon-${{ steps.get_version.outputs.tag }}.dmg
+          path: ${{ env.binary }}-macOS-apple-silicon-${{ needs.get-lib-info.outputs.version }}.dmg
           name: macOS-apple-silicon
           retention-days: 1
 
