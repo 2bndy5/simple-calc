@@ -1,82 +1,115 @@
+use std::str::FromStr;
+
 use bevy::prelude::*;
 
-#[derive(Debug, Resource)]
+use crate::cas::{ExprBuilder, Operand, Token, error::CasError, eval};
+
+#[derive(Debug, Resource, Default)]
 pub struct Calc {
-    left: f32,
-    right: Option<f32>,
-    symbol: String,
-    is_evaluated: bool,
+    pub operand: Option<Operand>,
+    pub expression: ExprBuilder,
 }
 
 impl Calc {
-    pub fn new() -> Self {
-        Calc {
-            left: 0.0,
-            right: Option::None,
-            symbol: "".to_string(),
-            is_evaluated: false,
-        }
+    pub fn display_operand(&self) -> String {
+        self.operand
+            .as_ref()
+            .map(|o| o.to_string())
+            .unwrap_or_default()
     }
-    pub fn add(&mut self) {
-        self.left += self.right.unwrap_or(0.0);
-        self.right = Option::None;
-        self.symbol = "".to_string();
-        self.is_evaluated = true;
-    }
-    pub fn sub(&mut self) {
-        self.left -= self.right.unwrap_or(0.0);
-        self.right = Option::None;
-        self.symbol = "".to_string();
-        self.is_evaluated = true;
-    }
-    pub fn mult(&mut self) {
-        self.left *= self.right.unwrap_or(1.0);
-        self.right = Option::None;
-        self.symbol = "".to_string();
-        self.is_evaluated = true;
-    }
-    pub fn div(&mut self) {
-        self.left /= self.right.unwrap_or(1.0);
-        self.right = Option::None;
-        self.symbol = "".to_string();
-        self.is_evaluated = true;
-    }
-    pub fn display(&self) -> String {
-        if let Some(right) = &self.right {
-            format!("{} {} {}", &self.left, &self.symbol, right)
-        } else {
-            format!("{} {}", &self.left, &self.symbol)
-        }
-    }
-    pub fn symbol(&self) -> String {
-        self.symbol.clone()
-    }
-    pub fn add_display(&mut self, val: f32) {
-        if self.is_evaluated
-            && (self.symbol != "+"
-                && self.symbol != "-"
-                && self.symbol != "/"
-                && self.symbol != "*")
-        {
-            self.left = 0.0;
-            self.right = None;
-            self.is_evaluated = false;
-        }
 
-        if !self.symbol.is_empty() {
-            let new_val = format!("{}{}", self.right.unwrap_or(0.0), val);
-            self.right = Some(new_val.parse::<f32>().unwrap());
+    pub fn push_operand(&mut self, val: &str) {
+        if self
+            .expression
+            .last()
+            .map(|t| matches!(t, Token::Eof))
+            .is_some_and(|b| b)
+        {
+            self.expression.clear();
+            if val != "-" {
+                self.operand = None;
+            }
+        }
+        if let Some(operand) = &mut self.operand {
+            operand.push_str(val);
         } else {
-            let new_val = format!("{}{}", self.left, val);
-            self.left = new_val.parse::<f32>().unwrap();
+            self.operand = Some(Operand::new(Token::Number(val.to_string())));
         }
     }
-    pub fn add_symbol(&mut self, val: String) {
-        self.symbol = val;
+
+    pub fn push_operator(&mut self, op: &str) {
+        if let Some(operand) = self.operand.take() {
+            if self
+                .expression
+                .last()
+                .map(|t| matches!(t, Token::Eof))
+                .is_some_and(|b| b)
+            {
+                self.expression.clear();
+            }
+            self.expression.push(operand.get_token());
+        }
+        if op != "("
+            && self
+                .expression
+                .last()
+                .map(|t| {
+                    matches!(
+                        t,
+                        Token::Plus
+                            | Token::Minus
+                            | Token::Star
+                            | Token::Slash
+                            | Token::Caret
+                            | Token::Modulo
+                            | Token::Factorial
+                    )
+                })
+                .unwrap_or(false)
+        {
+            self.expression.pop();
+        }
+        self.expression
+            .push(Token::from_str(op).unwrap_or(Token::Star));
     }
-    pub fn reset(&mut self) {
-        self.left = 0.0;
-        self.right = None;
-        self.symbol = "".to_string();
+
+    pub fn pop(&mut self) {
+        if let Some(operand) = self.operand.as_mut()
+            && !operand.is_empty()
+        {
+            operand.pop();
+        } else {
+            self.operand = None;
+            self.expression.pop();
+        }
+    }
+
+    // pub fn clear_all(&mut self) {
+    //     if self.operand.take().is_none() {
+    //         self.expression.clear();
+    //     }
+    // }
+
+    pub fn solve(&mut self) -> Result<(), CasError> {
+        if self
+            .expression
+            .last()
+            .map(|t| matches!(t, Token::Eof))
+            .is_some_and(|b| b)
+        {
+            // TODO: we need a way to repeat the last operation against the recent result.
+            // Just return early if the expression is already solved.
+            return Ok(());
+        }
+        if let Some(operand) = self.operand.take()
+            && !operand.is_empty()
+        {
+            self.expression.push(operand.get_token());
+        }
+        self.expression.push(Token::Eof);
+        let expr = self.expression.build()?;
+        let result = eval(&expr, &[])?;
+        self.operand = Some(Operand::new(Token::Number(result.to_string())));
+        Ok(())
     }
 }

@@ -1,10 +1,9 @@
 use crate::calc::Calc;
 use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
 
-pub const BG_COLOR: Color = Color::srgb(0.153, 0.153, 0.153);
-pub const BORDER_COLOR: Color = Color::srgb(0.5, 0.5, 0.5);
+pub const BG_COLOR: Color = Color::srgb(0.1255, 0.1255, 0.1255);
 pub const PRESSED_COLOR: Color = Color::srgb(0.7, 0.4, 0.0);
-pub const CC_COLOR: Color = Color::srgb(0.7, 0.0, 0.0);
+pub const EQ_COLOR: Color = Color::srgb(0.7, 0.0, 0.0);
 
 pub struct ButtonPlugin;
 impl Plugin for ButtonPlugin {
@@ -14,32 +13,41 @@ impl Plugin for ButtonPlugin {
 }
 
 fn button_press(calc: &mut Calc, val: String) {
-    match &val[..] {
-        "0" => calc.add_display(0.0),
-        "1" => calc.add_display(1.0),
-        "2" => calc.add_display(2.0),
-        "3" => calc.add_display(3.0),
-        "4" => calc.add_display(4.0),
-        "5" => calc.add_display(5.0),
-        "6" => calc.add_display(6.0),
-        "7" => calc.add_display(7.0),
-        "8" => calc.add_display(8.0),
-        "9" => calc.add_display(9.0),
-        "+" => calc.add_symbol("+".to_string()),
-        "-" => calc.add_symbol("-".to_string()),
-        "*" => calc.add_symbol("*".to_string()),
-        "/" => calc.add_symbol("/".to_string()),
-        "=" => {
-            let sym = calc.symbol();
-            match &sym[..] {
-                "+" => calc.add(),
-                "-" => calc.sub(),
-                "*" => calc.mult(),
-                "/" => calc.div(),
-                _ => (),
+    match val.as_str() {
+        "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
+            calc.push_operand(val.as_str())
+        }
+        ButtonPlugin::ADD => calc.push_operator("+"),
+        ButtonPlugin::SUBTRACT => calc.push_operator("-"),
+        ButtonPlugin::MULTIPLY => calc.push_operator("*"),
+        ButtonPlugin::DIVIDE => calc.push_operator("/"),
+        ButtonPlugin::MODULO => calc.push_operator("%"),
+        ButtonPlugin::SQUARED => {
+            calc.push_operator("^");
+            calc.push_operand("2");
+        }
+        ButtonPlugin::SQRT => {
+            calc.push_operator("^");
+            calc.push_operator("(");
+            calc.push_operand("1");
+            calc.push_operator("/");
+            calc.push_operand("2");
+            calc.push_operator(")");
+        }
+        ButtonPlugin::INVERSE => {
+            calc.push_operator("^");
+            calc.push_operand("-1");
+        }
+        ButtonPlugin::EQUALS => {
+            if let Err(e) = calc.solve() {
+                eprintln!("{e}");
             }
         }
-        "C" => calc.reset(),
+        ButtonPlugin::NEGATE => calc.push_operand("-"),
+        "." if calc.operand.as_ref().is_none_or(|op| !op.has_dot()) => calc.push_operand("."),
+        "C" => calc.operand = None,
+        "CE" => calc.expression.clear(),
+        ButtonPlugin::BACKSPACE => calc.pop(),
         _ => (),
     }
 }
@@ -54,35 +62,93 @@ fn button_system(
     mut text_query: Query<&mut Text>,
 ) {
     for (interaction, mut button_color, children) in interaction_query.iter_mut() {
-        let text = text_query.get_mut(children[0]).unwrap();
-        match *interaction {
-            Interaction::Pressed => {
-                button_color.0 = PRESSED_COLOR;
-                button_press(&mut calc, text.0.clone());
-            }
-            Interaction::Hovered => {
-                if text.0 == "C" {
-                    button_color.0 = Color::BLACK.mix(&CC_COLOR, 0.4);
-                } else {
-                    button_color.0 = Color::BLACK.mix(&BG_COLOR, 0.4);
+        match text_query.get_mut(children[0]) {
+            Ok(text) => {
+                match *interaction {
+                    Interaction::Pressed => {
+                        button_color.0 = PRESSED_COLOR;
+                        button_press(&mut calc, text.0.clone());
+                    }
+                    Interaction::Hovered => {
+                        if text.0 == ButtonPlugin::EQUALS {
+                            button_color.0 = Color::BLACK.mix(&EQ_COLOR, 0.6);
+                        } else if ButtonPlugin::OPERANDS.contains(&text.0.as_str()) {
+                            button_color.0 =
+                                Color::BLACK.mix(&ButtonPlugin::OPERAND_BUTTON_COLOR, 0.75);
+                        } else {
+                            button_color.0 =
+                                Color::BLACK.mix(&ButtonPlugin::OPERATOR_BUTTON_COLOR, 0.75);
+                        }
+                    }
+                    Interaction::None => {
+                        if text.0 == ButtonPlugin::EQUALS {
+                            button_color.0 = EQ_COLOR;
+                        } else if ButtonPlugin::OPERANDS.contains(&text.0.as_str()) {
+                            button_color.0 = ButtonPlugin::OPERAND_BUTTON_COLOR;
+                        } else {
+                            button_color.0 = ButtonPlugin::OPERATOR_BUTTON_COLOR;
+                        }
+                    }
                 }
+                button_color.set_changed();
             }
-            Interaction::None => {
-                if text.0 == "C" {
-                    button_color.0 = CC_COLOR;
-                } else {
-                    button_color.0 = BG_COLOR;
-                }
-            }
+            Err(e) => eprintln!("Error getting button text: {e}"),
         }
-        button_color.set_changed();
     }
 }
 
 impl ButtonPlugin {
-    pub fn spawn_buttons(parent: &mut RelatedSpawnerCommands<'_, ChildOf>, font: Handle<Font>) {
+    pub const MODULO: &'static str = "\u{E94C}";
+    pub const BACKSPACE: &'static str = "\u{E94F}";
+    pub const DIVIDE: &'static str = "\u{E94A}";
+    pub const MULTIPLY: &'static str = "\u{E947}";
+    pub const SUBTRACT: &'static str = "\u{E949}";
+    pub const ADD: &'static str = "\u{E948}";
+    pub const NEGATE: &'static str = "\u{E94D}";
+    pub const EQUALS: &'static str = "\u{E94E}";
+    pub const INVERSE: &'static str = "\u{00B9}\u{2044}x";
+    pub const SQUARED: &'static str = "x\u{00B2}";
+    pub const SQRT: &'static str = "\u{00B2}\u{221A}x";
+    const SPECIAL_CHARS: [&'static str; 8] = [
+        Self::MODULO,
+        Self::BACKSPACE,
+        Self::DIVIDE,
+        Self::MULTIPLY,
+        Self::SUBTRACT,
+        Self::ADD,
+        Self::NEGATE,
+        Self::EQUALS,
+    ];
+    pub const OPERAND_BUTTON_COLOR: Color = Color::srgb(0.2314, 0.2314, 0.2314);
+    pub const OPERATOR_BUTTON_COLOR: Color = Color::srgb(0.1908, 0.1908, 0.1908);
+    pub const OPERANDS: [&'static str; 12] = [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        ".",
+        Self::NEGATE,
+    ];
+
+    pub fn spawn_buttons(
+        parent: &mut RelatedSpawnerCommands<'_, ChildOf>,
+        font_ui: Handle<Font>,
+        font_norm: Handle<Font>,
+    ) {
+        #[rustfmt::skip]
         let btn_symbols = vec![
-            "7", "8", "9", "C", "4", "5", "6", "-", "1", "2", "3", "+", "0", "*", "/", "=",
+            Self::MODULO, "CE", "C", Self::BACKSPACE,
+            Self::INVERSE, Self::SQUARED, Self::SQRT, Self::DIVIDE,
+            "7", "8", "9", Self::MULTIPLY,
+            "4", "5", "6", Self::SUBTRACT,
+            "1", "2", "3", Self::ADD,
+            Self::NEGATE, "0", ".", Self::EQUALS,
         ];
         for i in btn_symbols {
             parent
@@ -91,23 +157,30 @@ impl ButtonPlugin {
                     Node {
                         width: Val::Percent(100.0),
                         height: Val::Percent(100.0),
-                        // center button
+                        margin: UiRect::all(Val::Px(2.0)),
                         border: UiRect::all(Val::Px(2.0)),
-                        // horizontally center child text
+                        border_radius: BorderRadius::all(Val::Px(5.0)),
                         justify_content: JustifyContent::Center,
-                        // vertically center child text
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    BorderColor::all(BORDER_COLOR),
-                    BackgroundColor(BG_COLOR),
+                    BackgroundColor(if Self::OPERANDS.contains(&i) {
+                        Self::OPERAND_BUTTON_COLOR
+                    } else {
+                        Self::OPERATOR_BUTTON_COLOR
+                    }),
+                    BorderColor::all(Color::NONE),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
                         Text::new(i.to_string()),
                         TextFont {
-                            font: font.clone(),
-                            font_size: 40.0,
+                            font: if ButtonPlugin::SPECIAL_CHARS.contains(&i) {
+                                font_ui.clone()
+                            } else {
+                                font_norm.clone()
+                            },
+                            font_size: 30.0,
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.8, 0.8, 0.8)),

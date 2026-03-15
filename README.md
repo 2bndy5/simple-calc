@@ -6,13 +6,10 @@ This was forked from its original source on github:
 <https://github.com/PravinKumar95/simple-calc>
 Modifications were made to:
 
-- upgrade it to use bevy v0.18.0
+- upgrade it to use bevy v0.18.1
 - some code cleanup
-
-Otherwise, the original functional behavior remains the same.
-
-> [!CAUTION]
-> This is not feature complete.
+- implement better expression parser/evaluator
+- re-organized the UI based on Microsoft calculator ("standard" variant)
 
 ![image of simple calculator](/calc.PNG "bevy calc")
 
