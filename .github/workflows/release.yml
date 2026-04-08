@@ -9,7 +9,7 @@ on:
     branches: [main, master]
 
 env:
-  binary: simple-calc
+  BINARY: simple-calc
 
 permissions: {}
 
@@ -19,7 +19,7 @@ jobs:
     outputs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Get project version
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Setup Rust toolchain
@@ -58,22 +58,22 @@ jobs:
 
       - name: Prepare package
         run: |-
-          wasm-bindgen --no-typescript --out-name bevy_game --out-dir wasm --target web target/wasm32-unknown-unknown/release/${{ env.binary }}.wasm
+          wasm-bindgen --no-typescript --out-name bevy_game --out-dir wasm --target web target/wasm32-unknown-unknown/release/${{ env.BINARY }}.wasm
           cp -r assets wasm/ || true # Try to copy, but ignore if it can't copy if source directory does not exist 
 
       - name: Package as a zip
         working-directory: ./wasm
         env:
-          asset_name: ${{ env.binary }}-wasm-${{ needs.get-lib-info.outputs.version }}.zip
+          asset_name: ${{ env.BINARY }}-wasm-${{ needs.get-lib-info.outputs.version }}.zip
         run: |
-          zip --recurse-paths ../${{ env.binary }}.zip .
-          mv ../${{ env.binary }}.zip ../${{ env.asset_name }}
+          zip --recurse-paths ../${{ env.BINARY }}.zip .
+          mv ../${{ env.BINARY }}.zip ../${{ env.asset_name }}
 
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v6
         with:
-          path: ${{ env.binary }}-wasm-${{ needs.get-lib-info.outputs.version }}.zip
-          name: wasm
+          path: ${{ env.BINARY }}-wasm-${{ needs.get-lib-info.outputs.version }}.zip
+          name: build-wasm
 
       - name: Prepare GH-pages artifact
         uses: actions/upload-pages-artifact@v4
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Get project version
@@ -125,22 +125,22 @@ jobs:
       - name: Prepare package
         run: |
           mkdir linux
-          cp target/x86_64-unknown-linux-gnu/release/${{ env.binary }} linux/
+          cp target/x86_64-unknown-linux-gnu/release/${{ env.BINARY }} linux/
           cp -r assets linux/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
 
       - name: Package as a zip
         working-directory: ./linux
         env:
-          asset_name: ${{ env.binary }}-linux-${{ needs.get-lib-info.outputs.version }}.zip
+          asset_name: ${{ env.BINARY }}-linux-${{ needs.get-lib-info.outputs.version }}.zip
         run: |
-          zip --recurse-paths ../${{ env.binary }}.zip .
-          mv ../${{ env.binary }}.zip ../${{ env.asset_name }}
+          zip --recurse-paths ../${{ env.BINARY }}.zip .
+          mv ../${{ env.BINARY }}.zip ../${{ env.asset_name }}
 
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.binary }}-linux-${{ needs.get-lib-info.outputs.version }}.zip
-          name: linux
+          path: ${{ env.BINARY }}-linux-${{ needs.get-lib-info.outputs.version }}.zip
+          name: build-linux-${{ matrix.name }}
 
   # Build for Windows
   build-windows:
@@ -148,7 +148,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: actions/setup-python@v6
@@ -177,125 +177,75 @@ jobs:
       - name: Prepare package
         run: |
           mkdir windows
-          cp target/x86_64-pc-windows-msvc/release/${{ env.binary }}.exe windows/
+          cp target/x86_64-pc-windows-msvc/release/${{ env.BINARY }}.exe windows/
           mkdir assets -ea 0 # create the assets directory if it does not exist, it will get ignored in the zip if empty
           cp -r assets windows/
 
       - name: Package as a zip
         env:
-          asset_name: ${{ env.binary }}-windows-${{ needs.get-lib-info.outputs.version }}.zip
+          asset_name: ${{ env.BINARY }}-windows-${{ needs.get-lib-info.outputs.version }}.zip
         run: |
-          Compress-Archive -Path windows/* -DestinationPath ${{ env.binary }}.zip
-          mv ${{ env.binary }}.zip ${{ env.asset_name }}
+          Compress-Archive -Path windows/* -DestinationPath ${{ env.BINARY }}.zip
+          mv ${{ env.BINARY }}.zip ${{ env.asset_name }}
 
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.binary }}-windows-${{ needs.get-lib-info.outputs.version }}.zip
+          path: ${{ env.BINARY }}-windows-${{ needs.get-lib-info.outputs.version }}.zip
+          name: build-windows-${{ matrix.name }}
 
-  # Build for MacOS x86_64
-  build-macOS-intel:
+  # Build for MacOS
+  build-macOS:
     needs: [get-lib-info]
     runs-on: macOS-latest
+    name: build-macOS-${{ matrix.name }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            name: intel
+          - target: aarch64-apple-darwin
+            name: silicon
 
     steps:
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Get project version
-        id: get_version
-        shell: python
-        run: |-
-          from os import environ
-          from tomllib import load
-          with open("Cargo.toml", "rb") as f:
-              cargo_toml = load(f)
-              version = cargo_toml["package"]["version"]
-              with open(environ["GITHUB_OUTPUT"], "a") as out:
-                  out.write(f"tag={version}\n")
       - name: Setup Rust toolchain
         run: |-
           rustup update --no-self-update
-          rustup target add x86_64-apple-darwin
-      - name: Environment Setup
-        run: |
+          rustup target add ${{ matrix.target }}
+      - name: Environment Setup (intel)
+        if: matrix.name == 'intel'
+        run: |-
           export CFLAGS="-fno-stack-check"
           export MACOSX_DEPLOYMENT_TARGET="10.9"
-
-      - name: Build
-        run: |
-          cargo build --release --target x86_64-apple-darwin
-
-      - name: Prepare Package
-        env:
-          asset_name: ${{ env.binary }}-macOS-intel-${{ needs.get-lib-info.outputs.version }}.dmg
-        run: |
-          mkdir -p ${{ env.binary }}.app/Contents/MacOS
-          cp target/x86_64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
-          cp -r assets ${{ env.binary }}.app/Contents/MacOS/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
-          hdiutil create -fs HFS+ -volname "${{ env.binary }}" -srcfolder ${{ env.binary }}.app ${{ env.binary }}-macOS-intel.dmg
-          mv ${{ env.binary }}-macOS-intel.dmg ${{ env.asset_name }}
-
-      - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          path: ${{ env.binary }}-macOS-intel-${{ needs.get-lib-info.outputs.version }}.dmg
-          name: macOS-intel
-
-  # Build for MacOS Apple Silicon
-  build-macOS-apple-silicon:
-    needs: [get-lib-info]
-    runs-on: macOS-latest
-
-    steps:
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Get project version
-        id: get_version
-        shell: python
-        run: |-
-          from os import environ
-          from tomllib import load
-          with open("Cargo.toml", "rb") as f:
-              cargo_toml = load(f)
-              version = cargo_toml["package"]["version"]
-              with open(environ["GITHUB_OUTPUT"], "a") as out:
-                  out.write(f"tag={version}\n")
-      - name: Setup Rust toolchain
-        run: |-
-          rustup update --no-self-update
-          rustup target add aarch64-apple-darwin
-      - name: Environment 
+      - name: Environment Setup (silicon)
+        if: matrix.name == 'silicon'
         # macOS 11 was the first version to support ARM
-        run: |
+        run: |-
           export MACOSX_DEPLOYMENT_TARGET="11"
 
       - name: Build
         run: |
-          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare Package
+        shell: bash
         env:
-          asset_name: ${{ env.binary }}-macOS-apple-silicon-${{ needs.get-lib-info.outputs.version }}.dmg
+          ASSET_NAME: ${{ env.BINARY }}-${{ needs.get-lib-info.outputs.version }}-${{ matrix.target }}.dmg
         run: |
-          mkdir -p ${{ env.binary }}.app/Contents/MacOS
-          cp target/aarch64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
-          cp -r assets ${{ env.binary }}.app/Contents/MacOS/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
-          hdiutil create -fs HFS+ -volname "${{ env.binary }}-macOS-apple-silicon" -srcfolder ${{ env.binary }}.app ${{ env.binary }}-macOS-apple-silicon.dmg
-          mv ${{ env.binary }}-macOS-apple-silicon.dmg ${{ env.asset_name }}
+          mkdir -p ${BINARY}.app/Contents/MacOS
+          cp target/${{ matrix.target }}/release/${BINARY} ${BINARY}.app/Contents/MacOS/
+          cp -r assets ${BINARY}.app/Contents/MacOS/ || true # Try to copy, but ignore if it can't copy if source directory does not exist
+          hdiutil create -fs HFS+ -volname "${BINARY}" -srcfolder ${BINARY}.app ${BINARY}-macOS-${{ matrix.name }}.dmg
+          mv ${BINARY}-macOS-${{ matrix.name }}.dmg ${ASSET_NAME}
 
       - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          path: ${{ env.binary }}-macOS-apple-silicon-${{ needs.get-lib-info.outputs.version }}.dmg
-          name: macOS-apple-silicon
+          path: ${{ env.BINARY }}-${{ needs.get-lib-info.outputs.version }}-${{ matrix.target }}.dmg
+          name: build-macOS-${{ matrix.name }}
           retention-days: 1
 
   release-assets:
@@ -307,32 +257,30 @@ jobs:
       - build-wasm
       - build-linux
       - build-windows
-      - build-macOS-intel
-      - build-macOS-apple-silicon
+      - build-macOS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
-          pattern: ${{ env.binary }}-*
+          pattern: build-*
           merge-multiple: true
           path: artifacts
       - name: List assets
-        id: list-assets
         run: |-
-          assets=$(ls ./artifacts)
-          echo "Assets to upload: ${assets}"
-          echo "artifacts=${assets}" >> "${GITHUB_OUTPUT}"
+          assets=$(ls artifacts/*)
+          echo "Assets to upload:\n${assets}"
       - name: Upload binaries to release
         if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref_name }}
-          artifacts: ${{ steps.list-assets.outputs.artifacts }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: >-
-          gn release upload
-          ${{ env.tag }}
-          --repo ${{ github.repository }}
-          ${{ env.artifacts }}
+          gh release upload
+          "${TAG}"
+          --repo "${REPO}"
+          $(ls artifacts/*)
 
   deploy-gh-pages:
     # We only want to deploy from
