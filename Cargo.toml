@@ -15,4 +15,9 @@ thiserror = "2.0.18"
 [dependencies.bevy]
 version = "0.18.1"
 default-features = false
-features = ["ui"]
+features = [
+    "default_app",
+    "default_platform",
+    "ui_api",
+    "ui_bevy_render",
+]
