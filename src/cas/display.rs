@@ -44,9 +44,8 @@ impl std::fmt::Display for Token {
 impl Precursor {
     fn expr_precursor(expr: &Expr) -> Self {
         match expr {
-            Expr::Add(_) => Self::Add,
-            Expr::Neg(_) => Self::Add,
-            Expr::Mul(_) => Self::Mul,
+            Expr::Add(_) | Expr::Neg(_) => Self::Add,
+            Expr::Mul(_) | Expr::Div(_, _) => Self::Mul,
             Expr::Pow(_, _) => Self::Pow,
             _ => Self::Atom,
         }
@@ -154,23 +153,6 @@ impl<'a> fmt::Display for DisplayExpr<'a> {
                 }
             }
             Expr::Mul(factors) => {
-                // Check if first factor is -1: print as negation
-                if factors.len() == 2
-                    && let Expr::Num(-1, 1) = &factors[0]
-                {
-                    write!(
-                        f,
-                        "-{}",
-                        DisplayExpr {
-                            expr: &factors[1],
-                            precursor: Precursor::Atom
-                        }
-                    )?;
-                    if needs_parens {
-                        write!(f, ")")?;
-                    }
-                    return Ok(());
-                }
                 for (i, factor) in factors.iter().enumerate() {
                     if i > 0 {
                         write!(f, "*")?;
@@ -184,6 +166,20 @@ impl<'a> fmt::Display for DisplayExpr<'a> {
                         }
                     )?;
                 }
+            }
+            Expr::Div(dividend, devisor) => {
+                write!(
+                    f,
+                    "{} / {}",
+                    DisplayExpr {
+                        expr: dividend,
+                        precursor: Precursor::Mul
+                    },
+                    DisplayExpr {
+                        expr: devisor,
+                        precursor: Precursor::Mul
+                    }
+                )?;
             }
             Expr::Modulo(a, b) => {
                 write!(

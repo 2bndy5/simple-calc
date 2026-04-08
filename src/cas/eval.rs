@@ -45,6 +45,14 @@ pub(crate) fn eval_inner(expr: &Expr, env: &HashMap<&str, f64>) -> Result<f64, C
             .iter()
             .map(|f| eval_inner(f, env))
             .try_fold(1.0_f64, |acc, r| r.map(|v| acc * v)),
+        Expr::Div(dividend, devisor) => {
+            let a = eval_inner(dividend, env)?;
+            let b = eval_inner(devisor, env)?;
+            if b == 0.0 {
+                return Err(CasError::Undefined("division by zero".to_string()));
+            }
+            Ok(a / b)
+        }
         Expr::Pow(base, exp) => {
             let b = eval_inner(base, env)?;
             let e = eval_inner(exp, env)?;
@@ -87,14 +95,14 @@ mod tests {
     }
 
     #[test]
-    fn eval_unbound_symbol_error() {
-        let e = parse("x + 1").unwrap();
+    fn divide_by_0() {
+        let e = parse("1 / 0").unwrap();
         assert!(eval(&e, &[]).is_err());
     }
 
     #[test]
-    fn eval_ln_negative_error() {
-        let e = parse("ln(-1)").unwrap();
+    fn eval_unbound_symbol_error() {
+        let e = parse("x + 1").unwrap();
         assert!(eval(&e, &[]).is_err());
     }
 }

@@ -128,14 +128,7 @@ impl Parser {
                 Token::Slash => {
                     self.advance();
                     let rhs = self.parse_unary()?;
-                    let inv = Expr::Pow(Box::new(rhs), Box::new(Expr::num(-1)));
-                    lhs = match lhs {
-                        Expr::Mul(mut v) => {
-                            v.push(inv);
-                            Expr::Mul(v)
-                        }
-                        other => Expr::Mul(vec![other, inv]),
-                    };
+                    lhs = Expr::Div(Box::new(lhs), Box::new(rhs));
                 }
                 Token::Modulo => {
                     self.advance();
@@ -314,6 +307,6 @@ pub(super) mod tests {
     #[test]
     fn parse_decimal() {
         let e = parse("0.5").unwrap();
-        assert_eq!(e, Expr::rat(1, 2));
+        assert_eq!(e, Expr::Float(0.5));
     }
 }

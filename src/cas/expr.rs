@@ -15,6 +15,8 @@ pub enum Expr {
     Add(Vec<Expr>),
     /// Multiplication: a * b * … (n-ary, stored as flat list).
     Mul(Vec<Expr>),
+    /// Division: a / b.
+    Div(Box<Expr>, Box<Expr>),
     /// Power: base ^ exponent.
     Pow(Box<Expr>, Box<Expr>),
     /// Negation: -x  (sugar for Mul([-1, x])).
