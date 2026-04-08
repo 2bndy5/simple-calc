@@ -40,35 +40,36 @@ impl Operand {
     pub fn push(&mut self, ch: char) {
         match &mut self.token {
             Some(Token::Number(n)) => {
-                if ch == '0' && n == "0" {
-                    // Do nothing to prevent leading zeros.
-                } else if ch == '-' {
-                    if n.starts_with('-') {
-                        *n = n.trim_start_matches('-').to_string();
-                    } else {
-                        *n = format!("-{}", n);
-                    }
-                } else if ch.is_ascii_digit() || ch == '.' {
-                    n.push(ch);
-                }
                 if ch == '-' {
                     if n.starts_with('-') {
                         self.token = Some(Token::Number(n.trim_start_matches('-').to_string()));
                     } else {
                         self.token = Some(Token::Number(format!("-{}", n)));
                     }
-                } else if (n != "0" && ch == '0') && (ch.is_ascii_digit() || ch == '.') {
-                    n.push(ch);
+                } else if ch.is_ascii_digit() || ch == '.' {
+                    if n == "0" {
+                        // prevent multiple leading zeros.
+                        if ch != '0' {
+                            // replace leading zero with the new digit or dot.
+                            *n = ch.to_string();
+                        }
+                    } else {
+                        if ch == '.' && n.is_empty() {
+                            n.push('0');
+                        }
+                        n.push(ch);
+                    }
                 }
             }
             Some(Token::Ident(n)) if ch.is_alphanumeric() || ch == '_' => n.push(ch),
             None => {
-                if ch.is_ascii_digit() {
+                if ch == '.' {
+                    self.token = Some(Token::Number(format!("0{ch}")));
+                } else if ch.is_ascii_digit() {
                     self.token = Some(Token::Number(ch.to_string()));
                 } else if ch.is_alphabetic() || ch == '_' {
                     self.token = Some(Token::Ident(ch.to_string()));
                 }
-                self.token = Some(Token::Number(ch.to_string()));
             }
             _ => {}
         }

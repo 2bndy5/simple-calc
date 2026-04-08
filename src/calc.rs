@@ -33,7 +33,9 @@ impl Calc {
         if let Some(operand) = &mut self.operand {
             operand.push_str(val);
         } else {
-            self.operand = Some(Operand::new(Token::Number(val.to_string())));
+            let mut operand = Operand::default();
+            operand.push_str(val);
+            self.operand = Some(operand);
         }
     }
 
