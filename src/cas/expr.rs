@@ -17,16 +17,8 @@ pub enum Expr {
     Mul(Vec<Expr>),
     /// Power: base ^ exponent.
     Pow(Box<Expr>, Box<Expr>),
-    /// Natural logarithm: ln(x).
-    Ln(Box<Expr>),
-    /// Sine: sin(x).
-    Sin(Box<Expr>),
-    /// Cosine: cos(x).
-    Cos(Box<Expr>),
     /// Negation: -x  (sugar for Mul([-1, x])).
     Neg(Box<Expr>),
-    /// Factorial: x!
-    Factorial(Box<Expr>),
     /// Modulo: a % b.
     Modulo(Box<Expr>, Box<Expr>),
 }

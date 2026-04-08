@@ -4244,7 +4244,6 @@ name = "simple-calc"
 version = "0.3.0"
 dependencies = [
  "bevy",
- "libm",
  "thiserror 2.0.18",
 ]
 

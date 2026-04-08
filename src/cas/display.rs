@@ -185,16 +185,6 @@ impl<'a> fmt::Display for DisplayExpr<'a> {
                     )?;
                 }
             }
-            Expr::Factorial(base) => {
-                write!(
-                    f,
-                    "{}!",
-                    DisplayExpr {
-                        expr: base,
-                        precursor: Precursor::Atom
-                    }
-                )?;
-            }
             Expr::Modulo(a, b) => {
                 write!(
                     f,
@@ -220,36 +210,6 @@ impl<'a> fmt::Display for DisplayExpr<'a> {
                     DisplayExpr {
                         expr: exp,
                         precursor: Precursor::Pow
-                    }
-                )?;
-            }
-            Expr::Ln(inner) => {
-                write!(
-                    f,
-                    "ln({})",
-                    DisplayExpr {
-                        expr: inner,
-                        precursor: Precursor::None
-                    }
-                )?;
-            }
-            Expr::Sin(inner) => {
-                write!(
-                    f,
-                    "sin({})",
-                    DisplayExpr {
-                        expr: inner,
-                        precursor: Precursor::None
-                    }
-                )?;
-            }
-            Expr::Cos(inner) => {
-                write!(
-                    f,
-                    "cos({})",
-                    DisplayExpr {
-                        expr: inner,
-                        precursor: Precursor::None
                     }
                 )?;
             }

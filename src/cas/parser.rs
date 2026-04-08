@@ -57,10 +57,6 @@ impl Parser {
         tok
     }
 
-    fn peek(&self) -> Option<&Token> {
-        self.tokens.get(self.pos + 1)
-    }
-
     fn expect(&mut self, expected: &Token) -> Result<(), CasError> {
         if self.current() == expected {
             self.advance();
@@ -157,11 +153,6 @@ impl Parser {
             self.advance();
             let e = self.parse_unary()?;
             return Ok(Expr::Neg(Box::new(e)));
-        } else if let Some(&Token::Factorial) = self.peek() {
-            // Handle postfix factorial operator
-            let base = self.parse_atom()?;
-            self.advance(); // consume '!' token
-            return Ok(Expr::Factorial(Box::new(base)));
         }
         self.parse_power()
     }
@@ -234,36 +225,6 @@ fn parse_number(s: &str) -> Result<Expr, CasError> {
 
 fn parse_function_call(name: &str, mut args: Vec<Expr>) -> Result<Expr, CasError> {
     match name {
-        "sin" => {
-            if args.len() != 1 {
-                return Err(CasError::InexactNumberOfArguments {
-                    function: name.into(),
-                    expected: 1,
-                    found: args.len(),
-                });
-            }
-            Ok(Expr::Sin(Box::new(args.remove(0))))
-        }
-        "cos" => {
-            if args.len() != 1 {
-                return Err(CasError::InexactNumberOfArguments {
-                    function: name.into(),
-                    expected: 1,
-                    found: args.len(),
-                });
-            }
-            Ok(Expr::Cos(Box::new(args.remove(0))))
-        }
-        "ln" | "log" => {
-            if args.len() != 1 {
-                return Err(CasError::InexactNumberOfArguments {
-                    function: name.into(),
-                    expected: 1,
-                    found: args.len(),
-                });
-            }
-            Ok(Expr::Ln(Box::new(args.remove(0))))
-        }
         "sqrt" => {
             if args.len() != 1 {
                 return Err(CasError::InexactNumberOfArguments {
@@ -339,12 +300,6 @@ pub(super) mod tests {
     }
 
     #[test]
-    fn parse_function_sin() {
-        let e = parse("sin(x)").unwrap();
-        assert_eq!(e, Expr::Sin(Box::new(Expr::Sym("x".to_string()))));
-    }
-
-    #[test]
     fn parse_function_sqrt() {
         let e = parse("sqrt(x)").unwrap();
         assert_eq!(
@@ -360,11 +315,5 @@ pub(super) mod tests {
     fn parse_decimal() {
         let e = parse("0.5").unwrap();
         assert_eq!(e, Expr::rat(1, 2));
-    }
-
-    #[test]
-    fn parse_factorial() {
-        let e = parse("5!").unwrap();
-        assert_eq!(e, Expr::Factorial(Box::new(Expr::num(5))));
     }
 }

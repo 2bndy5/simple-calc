@@ -50,40 +50,6 @@ pub(crate) fn eval_inner(expr: &Expr, env: &HashMap<&str, f64>) -> Result<f64, C
             let e = eval_inner(exp, env)?;
             Ok(b.powf(e))
         }
-        Expr::Ln(inner) => {
-            let v = eval_inner(inner, env)?;
-            if v <= 0.0 {
-                Err(CasError::Undefined(format!(
-                    "ln of non-positive value: {v}"
-                )))
-            } else {
-                Ok(v.ln())
-            }
-        }
-        Expr::Sin(inner) => Ok(eval_inner(inner, env)?.sin()),
-        Expr::Cos(inner) => Ok(eval_inner(inner, env)?.cos()),
-        Expr::Factorial(expr) => {
-            let base = eval_inner(expr, env)?;
-            if base < 0.0 {
-                return Err(CasError::Undefined(format!(
-                    "factorial is only defined for non-negative integers, got {base}"
-                )));
-            }
-            if base == 0.0 {
-                return Ok(1.0);
-            }
-            if base.fract() == 0.0 {
-                let base = base.floor() as u64;
-                let mut result = 1_u64;
-                for i in 1..=base {
-                    result = result.checked_mul(i).ok_or(CasError::Undefined(format!(
-                        "factorial overflow for {base}!"
-                    )))?;
-                }
-                return Ok(result as f64);
-            }
-            Ok(libm::tgamma(base))
-        }
         Expr::Modulo(expr, expr1) => {
             let a = eval_inner(expr, env)?;
             let b = eval_inner(expr1, env)?;
@@ -118,20 +84,6 @@ mod tests {
         let e = parse("x^2 + 1").unwrap();
         let result = eval(&e, &[("x", 3.0)]).unwrap();
         assert!((result - 10.0).abs() < 1e-12);
-    }
-
-    #[test]
-    fn eval_trig() {
-        let e = parse("sin(pi)").unwrap();
-        let result = eval(&e, &[]).unwrap();
-        assert!(result.abs() < 1e-12);
-    }
-
-    #[test]
-    fn eval_ln_e() {
-        let e = parse("ln(e)").unwrap();
-        let result = eval(&e, &[]).unwrap();
-        assert!((result - 1.0).abs() < 1e-12);
     }
 
     #[test]
