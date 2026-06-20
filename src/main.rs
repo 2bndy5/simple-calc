@@ -98,8 +98,8 @@ fn setup_calc_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                             DisplayExpression,
                             Text::new("".to_string()),
                             TextFont {
-                                font: font_norm.clone(),
-                                font_size: 32.0,
+                                font: FontSource::Handle(font_norm.clone()),
+                                font_size: FontSize::Vh(7.0),
                                 ..Default::default()
                             },
                             TextColor(Color::WHITE.with_alpha(0.5)),
@@ -108,8 +108,8 @@ fn setup_calc_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         DisplayOperand,
                         Text::new("0".to_string()),
                         TextFont {
-                            font: font_norm.clone(),
-                            font_size: 42.0,
+                            font: FontSource::Handle(font_norm.clone()),
+                            font_size: FontSize::Vh(9.0),
                             ..Default::default()
                         },
                         TextColor(Color::WHITE),
