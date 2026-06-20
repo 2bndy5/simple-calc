@@ -175,12 +175,12 @@ impl ButtonPlugin {
                     parent.spawn((
                         Text::new(i.to_string()),
                         TextFont {
-                            font: if ButtonPlugin::SPECIAL_CHARS.contains(&i) {
+                            font: FontSource::Handle(if ButtonPlugin::SPECIAL_CHARS.contains(&i) {
                                 font_ui.clone()
                             } else {
                                 font_norm.clone()
-                            },
-                            font_size: 30.0,
+                            }),
+                            font_size: FontSize::Px(30.0),
                             ..Default::default()
                         },
                         TextColor(Color::srgb(0.8, 0.8, 0.8)),

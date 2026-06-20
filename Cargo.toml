@@ -1,6 +1,6 @@
 [package]
 name = "simple-calc"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Pravin Kumar <pravinshanmugam1995@gmail.com>",
     "Brendan Doherty <2bndy5@gmail.com>",
@@ -13,7 +13,7 @@ thiserror = "2.0.18"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.bevy]
-version = "0.18.1"
+version = "0.19.0"
 default-features = false
 features = [
     "default_app",
