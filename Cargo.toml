@@ -8,16 +8,17 @@ authors = [
 edition = "2024"
 
 [dependencies]
-thiserror = "2.0.18"
+thiserror = "2.0.21"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.bevy]
-version = "0.19.0"
+version = "0.20.0"
 default-features = false
 features = [
     "default_app",
     "default_platform",
-    "ui_api",
+    "bevy_ui_widgets",
+    "ui_picking",
     "ui_bevy_render",
 ]

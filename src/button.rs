@@ -1,5 +1,11 @@
 use crate::calc::Calc;
-use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
+use bevy::{
+    ecs::relationship::RelatedSpawnerCommands,
+    picking::hover::Hovered,
+    prelude::*,
+    ui::Pressed,
+    ui_widgets::{Activate, Button},
+};
 
 pub const BG_COLOR: Color = Color::srgb(0.1255, 0.1255, 0.1255);
 pub const PRESSED_COLOR: Color = Color::srgb(0.7, 0.4, 0.0);
@@ -54,43 +60,43 @@ fn button_press(calc: &mut Calc, val: String) {
 
 #[allow(clippy::type_complexity)]
 fn button_system(
-    mut calc: ResMut<Calc>,
     mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor, &Children),
-        (Changed<Interaction>, With<Button>),
+        (&Hovered, Has<Pressed>, &mut BackgroundColor, &Children),
+        With<Button>,
     >,
     mut text_query: Query<&mut Text>,
 ) {
-    for (interaction, mut button_color, children) in interaction_query.iter_mut() {
+    for (hovered, pressed, mut button_color, children) in interaction_query.iter_mut() {
         match text_query.get_mut(children[0]) {
             Ok(text) => {
-                match *interaction {
-                    Interaction::Pressed => {
-                        button_color.0 = PRESSED_COLOR;
-                        button_press(&mut calc, text.0.clone());
-                    }
-                    Interaction::Hovered => {
+                match (hovered.get(), pressed) {
+                    // pressed (and hovered implicitly)
+                    (_, true) => *button_color = BackgroundColor(PRESSED_COLOR),
+                    // hovered and not pressed
+                    (true, false) => {
                         if text.0 == ButtonPlugin::EQUALS {
-                            button_color.0 = Color::BLACK.mix(&EQ_COLOR, 0.6);
+                            *button_color = BackgroundColor(Color::BLACK.mix(&EQ_COLOR, 0.6));
                         } else if ButtonPlugin::OPERANDS.contains(&text.0.as_str()) {
-                            button_color.0 =
-                                Color::BLACK.mix(&ButtonPlugin::OPERAND_BUTTON_COLOR, 0.75);
+                            *button_color = BackgroundColor(
+                                Color::BLACK.mix(&ButtonPlugin::OPERAND_BUTTON_COLOR, 0.75),
+                            );
                         } else {
-                            button_color.0 =
-                                Color::BLACK.mix(&ButtonPlugin::OPERATOR_BUTTON_COLOR, 0.75);
+                            *button_color = BackgroundColor(
+                                Color::BLACK.mix(&ButtonPlugin::OPERATOR_BUTTON_COLOR, 0.75),
+                            );
                         }
                     }
-                    Interaction::None => {
+                    // not hovered and not pressed
+                    (false, false) => {
                         if text.0 == ButtonPlugin::EQUALS {
-                            button_color.0 = EQ_COLOR;
+                            *button_color = BackgroundColor(EQ_COLOR);
                         } else if ButtonPlugin::OPERANDS.contains(&text.0.as_str()) {
-                            button_color.0 = ButtonPlugin::OPERAND_BUTTON_COLOR;
+                            *button_color = BackgroundColor(ButtonPlugin::OPERAND_BUTTON_COLOR);
                         } else {
-                            button_color.0 = ButtonPlugin::OPERATOR_BUTTON_COLOR;
+                            *button_color = BackgroundColor(ButtonPlugin::OPERATOR_BUTTON_COLOR);
                         }
                     }
                 }
-                button_color.set_changed();
             }
             Err(e) => eprintln!("Error getting button text: {e}"),
         }
@@ -154,6 +160,7 @@ impl ButtonPlugin {
             parent
                 .spawn((
                     Button,
+                    Hovered::default(),
                     Node {
                         width: Val::Percent(100.0),
                         height: Val::Percent(100.0),
@@ -171,6 +178,9 @@ impl ButtonPlugin {
                     }),
                     BorderColor::all(Color::NONE),
                 ))
+                .observe(move |_: On<Activate>, mut calc: ResMut<Calc>| {
+                    button_press(&mut calc, i.to_string());
+                })
                 .with_children(|parent| {
                     parent.spawn((
                         Text::new(i.to_string()),
